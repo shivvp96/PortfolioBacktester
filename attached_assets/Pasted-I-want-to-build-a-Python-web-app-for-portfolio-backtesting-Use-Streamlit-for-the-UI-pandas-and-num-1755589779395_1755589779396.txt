@@ -1,0 +1,25 @@
+I want to build a Python web app for portfolio backtesting. Use Streamlit for the UI, pandas and numpy for data handling, yfinance to fetch historical stock prices, and plotly for interactive charts. Please set up a Replit project with these files:
+
+• app.py – contains the Streamlit app.
+• requirements.txt – lists streamlit, pandas, numpy, yfinance, plotly.
+• .replit – sets the run command to “streamlit run app.py --server.port 3000 --server.address 0.0.0.0”.
+• README.md – documents setup and usage.
+
+In app.py implement:
+
+1. A function fetch_prices(tickers, start_date, end_date) that downloads adjusted close prices for each ticker (fall back to close if needed) via yfinance, handles invalid tickers gracefully and returns a price DataFrame.
+2. A function compute_returns(prices, frequency) that resamples prices to daily, weekly (Friday), or month‑end and computes percentage returns.
+3. A function rebalance_points(index, freq) that returns rebalancing dates for “Monthly”, “Quarterly”, “Yearly”, or “None”.
+4. A function simulate_portfolio(returns, target_weights, rebalance, fees_bps) that simulates portfolio returns with weight drift between rebalances; on each rebalance date reset weights to targets and subtract transaction costs based on turnover (bps/10 000 × turnover). Return series of portfolio returns, weight history, and drawdown.
+5. A function performance_stats(port_ret, rf_annual, freq) that computes total return %, CAGR %, volatility %, Sharpe ratio (using a risk‑free rate), and max drawdown %.
+6. Plot functions using plotly: plot_equity_curve(port_ret, bench) to show growth of $1 versus a benchmark; plot_drawdown(drawdown) to show drawdowns as percentages.
+7. A Streamlit sidebar that asks for start and end dates, sampling frequency (D/W/M), rebalancing cadence (Monthly/Quarterly/Yearly/None), transaction cost in basis points, risk‑free rate (annual %), and benchmark (None/SPY/QQQ).
+8. A Streamlit data editor (table) that lets the user input tickers and weights; normalise weights internally and ignore empty or duplicate tickers.
+9. A Run Backtest button that:
+   • Fetches price data and computes returns.
+   • Computes benchmark returns for SPY or QQQ when chosen.
+   • Runs the simulation with the selected rebalancing and transaction costs.
+   • Shows metrics (total return %, CAGR %, volatility %, Sharpe, max drawdown %), interactive equity/drawdown charts, final weights, and provides a CSV download of daily portfolio and benchmark returns.
+10. Use @st.cache_data for fetch_prices to avoid repeated downloads.
+
+Write the README.md to explain how to use the app, how weights are normalised, and note that it works for any Yahoo Finance symbol (e.g., AAPL, MSFT, NVDA). Also suggest future enhancements like drift‑band rebalancing, rolling metrics, portfolio comparisons, saving/loading portfolios, and quick‑select lists of S&P 500 or Nasdaq constituents. Ensure the app runs on port 3000 in Replit and handles input errors gracefully.
