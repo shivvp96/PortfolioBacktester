@@ -368,9 +368,19 @@ def main():
     
     # Process portfolio data
     portfolio_data = edited_data.copy()
-    portfolio_data = portfolio_data[portfolio_data['Ticker'].str.strip() != '']  # Remove empty tickers
-    portfolio_data = portfolio_data.drop_duplicates(subset='Ticker')  # Remove duplicates
-    portfolio_data['Ticker'] = portfolio_data['Ticker'].str.upper()  # Convert to uppercase
+    # Remove rows with None, NaN, or empty ticker values
+    portfolio_data = portfolio_data.dropna(subset=['Ticker'])
+    
+    # Filter out empty and 'none' values
+    valid_mask = (
+        (portfolio_data['Ticker'].astype(str).str.strip() != '') &
+        (portfolio_data['Ticker'].astype(str).str.strip().str.lower() != 'none')
+    )
+    portfolio_data = portfolio_data[valid_mask]
+    
+    # Remove duplicates and convert to uppercase
+    portfolio_data = portfolio_data.drop_duplicates(subset=['Ticker'])
+    portfolio_data['Ticker'] = portfolio_data['Ticker'].astype(str).str.upper()
     
     # Normalize weights
     if not portfolio_data.empty and portfolio_data['Weight'].sum() > 0:
