@@ -1,0 +1,62 @@
+# Portfolio Backtesting Tool
+
+## Overview
+
+This is a comprehensive portfolio backtesting application built with Streamlit that allows users to analyze investment portfolio strategies using historical stock market data. The tool provides professional-grade portfolio analysis capabilities including performance metrics calculation, benchmark comparison, transaction cost modeling, and interactive visualizations. Users can configure portfolios with custom ticker symbols and weights, set rebalancing frequencies, and analyze results through detailed charts and statistics.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+The application uses **Streamlit** as the primary web framework, providing a reactive single-page application structure. The UI is organized with a sidebar for parameter configuration and a main content area for portfolio input and results display. The interface includes:
+- Interactive data editor for portfolio composition
+- Parameter controls in sidebar for backtest configuration
+- Real-time result updates triggered by user interactions
+- Plotly-based interactive charts for data visualization
+
+### Backend Architecture
+The backend follows a **functional programming** approach with modular components:
+- **Data Fetching Layer**: Handles external API calls to Yahoo Finance with caching
+- **Computation Engine**: Processes returns, simulates portfolios, and calculates performance metrics
+- **Visualization Layer**: Generates interactive charts using Plotly
+- **State Management**: Leverages Streamlit's built-in state management for reactive updates
+
+### Data Processing Pipeline
+The application implements a **sequential data processing pipeline**:
+1. **Price Data Acquisition**: Fetches historical stock prices with error handling
+2. **Return Calculation**: Converts prices to returns with configurable sampling frequency
+3. **Portfolio Simulation**: Models portfolio performance with weight drift and rebalancing
+4. **Performance Analysis**: Computes comprehensive financial metrics
+5. **Visualization Generation**: Creates interactive charts for results presentation
+
+### Caching Strategy
+Implements **Streamlit's native caching** (`@st.cache_data`) for the price fetching function to minimize API calls and improve performance. This prevents redundant data downloads when users modify parameters without changing the underlying ticker symbols or date ranges.
+
+### Error Handling
+The system uses **graceful degradation** patterns:
+- Invalid tickers are filtered out with user notifications
+- Missing data is handled with fallback mechanisms (Adjusted Close to Close prices)
+- API failures are caught and reported without breaking the application flow
+
+## External Dependencies
+
+### Data Services
+- **Yahoo Finance API** (via yfinance library): Primary data source for historical stock prices, dividend-adjusted close prices, and market data
+- **Market Benchmarks**: SPY and QQQ data for portfolio performance comparison
+
+### Core Libraries
+- **Streamlit**: Web application framework and UI components
+- **yfinance**: Yahoo Finance API wrapper for financial data retrieval
+- **pandas**: Data manipulation and time series analysis
+- **numpy**: Numerical computations and array operations
+- **plotly**: Interactive charting and data visualization
+
+### Runtime Environment
+- **Python 3.x**: Primary runtime environment
+- **Replit**: Cloud hosting platform with automatic deployment configuration
+- **Web Browser**: Client-side rendering of Streamlit interface and Plotly charts
+
+The application is designed to be self-contained with minimal external service dependencies, relying primarily on Yahoo Finance for market data and Streamlit's built-in capabilities for the web interface.
