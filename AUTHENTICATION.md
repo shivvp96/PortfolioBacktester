@@ -2,7 +2,7 @@
 
 ## Overview
 
-The portfolio backtesting application now includes a comprehensive authentication system with role-based access control. This ensures secure access to different features based on user roles and permissions.
+The portfolio backtesting application now includes a comprehensive authentication system with role-based access control and user registration capabilities. This ensures secure access to different features based on user roles and permissions, while allowing new users to create their own accounts.
 
 ## Features
 
@@ -11,6 +11,14 @@ The portfolio backtesting application now includes a comprehensive authenticatio
 - Session management with automatic logout
 - Login attempt limiting (max 5 attempts)
 - Secure password handling
+
+### 📝 User Registration System
+- Self-service account creation
+- Email validation and username uniqueness checking
+- Password strength recommendations
+- Terms of Service and Privacy Policy integration
+- Automatic role assignment (Regular User level)
+- Persistent user storage in file system
 
 ### 👥 Role-Based Access Control
 Four distinct user roles with different permission levels:
@@ -72,9 +80,16 @@ Four distinct user roles with different permission levels:
 
 ## Usage Instructions
 
-### For End Users
+### For New Users
+1. **Create Account:** Click "Sign Up" on the login page
+2. **Fill Registration Form:** Enter username, email, and password
+3. **Accept Terms:** Review and agree to Terms of Service and Privacy Policy
+4. **Confirm Registration:** Complete account creation
+5. **Login:** Switch to Login tab and use your new credentials
+
+### For Existing Users
 1. **Access the Application:** Navigate to the portfolio backtesting tool
-2. **Login:** Use one of the provided demo credentials or your assigned username/password
+2. **Login:** Use your registered credentials or demo accounts
 3. **Explore Features:** Access features based on your role permissions
 4. **Logout:** Use the logout button in the top-right corner when finished
 

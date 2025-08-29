@@ -9,6 +9,7 @@ import io
 import hashlib
 import hmac
 from auth_config import DEMO_USERS, ROLE_FEATURES
+from terms_of_service import get_terms_of_service, get_privacy_policy
 
 # Set page config
 st.set_page_config(
@@ -34,8 +35,16 @@ def check_authentication():
 def get_user_role():
     """Get current user's role"""
     username = st.session_state.get('username', '')
+    
+    # Check demo users first
     if username in DEMO_USERS:
         return DEMO_USERS[username]['role']
+    
+    # Check registered users
+    registered_users = load_registered_users()
+    if username in registered_users:
+        return registered_users[username]['role']
+    
     return 'demo'
 
 def get_user_permissions():
@@ -43,58 +52,231 @@ def get_user_permissions():
     role = get_user_role()
     return ROLE_FEATURES.get(role, ROLE_FEATURES['demo'])
 
-def login_form():
-    """Display login form"""
-    st.title("🔐 Portfolio Backtesting Tool - Login")
-    st.markdown("Welcome! Please log in to access the portfolio backtesting tool.")
+def save_user_to_file(username, password, email, role="user"):
+    """Save new user to a persistent file"""
+    import os
+    user_file = "registered_users.txt"
     
-    # Track login attempts
+    # Create file if it doesn't exist
+    if not os.path.exists(user_file):
+        with open(user_file, 'w') as f:
+            f.write("# Registered Users\n")
+    
+    # Append new user
+    with open(user_file, 'a') as f:
+        f.write(f"{username}|{password}|{email}|{role}\n")
+
+def load_registered_users():
+    """Load registered users from file"""
+    import os
+    user_file = "registered_users.txt"
+    registered_users = {}
+    
+    if os.path.exists(user_file):
+        with open(user_file, 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    parts = line.strip().split('|')
+                    if len(parts) >= 4:
+                        username, password, email, role = parts[:4]
+                        registered_users[username] = {
+                            'password': password,
+                            'email': email,
+                            'role': role,
+                            'permissions': ['portfolio_access']
+                        }
+    return registered_users
+
+def signup_form():
+    """Display signup form"""
+    st.title("📝 Create New Account")
+    st.markdown("Sign up for a new account to access the portfolio backtesting tool.")
+    
+    with st.form("signup_form"):
+        st.subheader("Sign Up")
+        new_username = st.text_input("Choose Username")
+        new_email = st.text_input("Email Address")
+        new_password = st.text_input("Choose Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        
+        # Terms and conditions
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📋 View Terms of Service"):
+                st.session_state['show_terms'] = True
+        with col2:
+            if st.button("🔒 View Privacy Policy"):
+                st.session_state['show_privacy'] = True
+        
+        agree_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy")
+        
+        # Show terms modal
+        if st.session_state.get('show_terms', False):
+            with st.expander("📋 Terms of Service", expanded=True):
+                st.markdown(get_terms_of_service())
+                if st.button("Close Terms"):
+                    st.session_state['show_terms'] = False
+                    st.rerun()
+        
+        # Show privacy modal  
+        if st.session_state.get('show_privacy', False):
+            with st.expander("🔒 Privacy Policy", expanded=True):
+                st.markdown(get_privacy_policy())
+                if st.button("Close Privacy Policy"):
+                    st.session_state['show_privacy'] = False
+                    st.rerun()
+        
+        signup_button = st.form_submit_button("Create Account")
+        
+        if signup_button:
+            # Validation
+            registered_users = load_registered_users()
+            all_users = {**DEMO_USERS, **registered_users}
+            
+            if not new_username or not new_email or not new_password:
+                st.error("Please fill in all fields.")
+                return
+            
+            if new_username in all_users:
+                st.error("Username already exists. Please choose a different username.")
+                return
+            
+            if len(new_username) < 3:
+                st.error("Username must be at least 3 characters long.")
+                return
+            
+            if len(new_password) < 6:
+                st.error("Password must be at least 6 characters long.")
+                return
+            
+            # Enhanced password validation
+            if not any(c.isdigit() for c in new_password):
+                st.warning("Password should contain at least one number for better security.")
+            
+            if not any(c.isupper() for c in new_password):
+                st.warning("Password should contain at least one uppercase letter for better security.")
+            
+            if new_password != confirm_password:
+                st.error("Passwords do not match.")
+                return
+            
+            if '@' not in new_email:
+                st.error("Please enter a valid email address.")
+                return
+            
+            if not agree_terms:
+                st.error("Please agree to the Terms of Service.")
+                return
+            
+            # Save new user
+            try:
+                save_user_to_file(new_username, new_password, new_email, "user")
+                st.success("🎉 Welcome to Portfolio Backtesting Tool!")
+                st.info(f"""
+                **Account Created Successfully!**
+                
+                👤 Username: {new_username}
+                📧 Email: {new_email}
+                🎯 Role: Regular User
+                
+                **Your Benefits:**
+                - Create up to 5 portfolios
+                - Advanced interactive charts
+                - CSV data export
+                - Full benchmark comparison
+                
+                You can now switch to the Login tab to access your account.
+                """)
+                st.session_state['show_signup'] = False
+                st.session_state['signup_success'] = True
+            except Exception as e:
+                st.error(f"Error creating account: {str(e)}")
+
+def login_form():
+    """Display login form with signup option"""
+    # Initialize session state
+    if 'show_signup' not in st.session_state:
+        st.session_state.show_signup = False
+    
     if 'login_attempts' not in st.session_state:
         st.session_state.login_attempts = 0
     
-    with st.form("login_form"):
-        st.subheader("Login")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        login_button = st.form_submit_button("Login")
+    # Show success message if just signed up
+    if st.session_state.get('signup_success', False):
+        st.session_state['signup_success'] = False
+        st.session_state.show_signup = False
+    
+    # Toggle between login and signup
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔐 Login", type="primary" if not st.session_state.show_signup else "secondary"):
+            st.session_state.show_signup = False
+            st.rerun()
+    with col2:
+        if st.button("📝 Sign Up", type="primary" if st.session_state.show_signup else "secondary"):
+            st.session_state.show_signup = True
+            st.rerun()
+    
+    st.markdown("---")
+    
+    if st.session_state.show_signup:
+        signup_form()
+    else:
+        st.title("🔐 Portfolio Backtesting Tool - Login")
+        st.markdown("Welcome! Please log in to access the portfolio backtesting tool.")
         
-        if login_button:
-            if st.session_state.login_attempts >= 5:
-                st.error("Too many login attempts. Please refresh the page to try again.")
-                return
+        with st.form("login_form"):
+            st.subheader("Login")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            login_button = st.form_submit_button("Login")
+            
+            if login_button:
+                if st.session_state.login_attempts >= 5:
+                    st.error("Too many login attempts. Please refresh the page to try again.")
+                    return
                 
-            if username in DEMO_USERS:
-                if verify_password(DEMO_USERS[username]['password'], password):
-                    st.session_state['authenticated'] = True
-                    st.session_state['username'] = username
-                    st.session_state['user_role'] = DEMO_USERS[username]['role']
-                    st.session_state.login_attempts = 0
-                    st.success("Login successful!")
-                    st.rerun()
+                # Check both demo users and registered users
+                registered_users = load_registered_users()
+                all_users = {**DEMO_USERS, **registered_users}
+                
+                if username in all_users:
+                    if verify_password(all_users[username]['password'], password):
+                        st.session_state['authenticated'] = True
+                        st.session_state['username'] = username
+                        st.session_state['user_role'] = all_users[username]['role']
+                        st.session_state.login_attempts = 0
+                        st.success("Login successful!")
+                        st.rerun()
+                    else:
+                        st.session_state.login_attempts += 1
+                        st.error("Invalid password")
                 else:
                     st.session_state.login_attempts += 1
-                    st.error("Invalid password")
-            else:
-                st.session_state.login_attempts += 1
-                st.error("Invalid username")
-    
-    # Demo credentials info
-    with st.expander("📋 Demo Credentials"):
-        st.info("""
-        **Available Demo Accounts:**
+                    st.error("Invalid username")
         
-        🔵 **Demo User** (Limited features)
-        - Username: `demo` | Password: `demo`
+        # Demo credentials info
+        # Show registered users count
+        registered_users = load_registered_users()
+        if registered_users:
+            st.success(f"✅ {len(registered_users)} registered user(s) in the system")
         
-        🟢 **Regular User** (Standard features)  
-        - Username: `user` | Password: `password123`
-        
-        🟡 **Analyst** (Advanced features)
-        - Username: `analyst` | Password: `analyst2024`
-        
-        🔴 **Administrator** (Full access)
-        - Username: `admin` | Password: `admin123`
-        """)
+        with st.expander("📋 Demo Credentials"):
+            st.info("""
+            **Available Demo Accounts:**
+            
+            🔵 **Demo User** (Limited features)
+            - Username: `demo` | Password: `demo`
+            
+            🟢 **Regular User** (Standard features)  
+            - Username: `user` | Password: `password123`
+            
+            🟡 **Analyst** (Advanced features)
+            - Username: `analyst` | Password: `analyst2024`
+            
+            🔴 **Administrator** (Full access)
+            - Username: `admin` | Password: `admin123`
+            """)
 
 def logout():
     """Logout user"""
