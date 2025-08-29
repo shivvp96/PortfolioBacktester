@@ -134,8 +134,8 @@ def login_form():
     with col2:
         if st.session_state.show_signup:
             # Clean signup form without box
-            st.markdown("#### Create New Account")
-            st.markdown("Get access to advanced portfolio analysis tools")
+            st.markdown("<h4 style='text-align: center;'>Create New Account</h4>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center;'>Get access to advanced portfolio analysis tools</p>", unsafe_allow_html=True)
             
             with st.form("signup_form", clear_on_submit=True):
                 new_username = st.text_input("Username", placeholder="Choose a username", label_visibility="collapsed")
@@ -184,8 +184,8 @@ def login_form():
         
         else:
             # Clean login form without box
-            st.markdown("#### Welcome Back")
-            st.markdown("Sign in to access your portfolio analytics")
+            st.markdown("<h4 style='text-align: center;'>Welcome Back</h4>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center;'>Sign in to access your portfolio analytics</p>", unsafe_allow_html=True)
             
             with st.form("login_form"):
                 username = st.text_input("Username", placeholder="Enter your username", label_visibility="collapsed")
