@@ -108,10 +108,10 @@ def login_form():
     st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
         <h1 style='color: #00D4AA; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;'>
-            Portfolio Analytics Platform
+            Portfolio Backtesting Platform
         </h1>
         <p style='color: #8B949E; font-size: 1.1rem; margin-bottom: 2rem;'>
-            Professional-grade portfolio backtesting and risk analysis
+            Professional-grade portfolio backtesting and risk analysis tool
         </p>
     </div>
     """, unsafe_allow_html=True)
