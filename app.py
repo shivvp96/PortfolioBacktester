@@ -577,18 +577,22 @@ def main():
             role_colors = {"administrator": "#FF6B6B", "analyst": "#4ECDC4", "user": "#45B7D1", "demo": "#96CEB4"}
             role_color = role_colors.get(user_role, "#8B949E")
             
+            # User info and sign out button in aligned layout
             st.markdown(f"""
             <div style='text-align: right; padding: 1rem 0;'>
                 <div style='display: inline-block; background: {role_color}20; 
-                           padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid {role_color}40;'>
+                           padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid {role_color}40; margin-bottom: 0.5rem;'>
                     <span style='color: {role_color}; font-weight: 600;'>{st.session_state.get('username', 'User')}</span>
                     <span style='color: #8B949E; font-size: 0.9rem;'> • {user_role.title()}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("Sign Out", key="logout_btn", use_container_width=False):
-                logout()
+            # Align the sign out button to the right
+            col_spacer, col_btn = st.columns([3, 1])
+            with col_btn:
+                if st.button("Sign Out", key="logout_btn", use_container_width=True):
+                    logout()
     
     # Professional sidebar styling
     st.sidebar.markdown("""
