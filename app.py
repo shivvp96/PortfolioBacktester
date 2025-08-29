@@ -395,7 +395,7 @@ def calculate_capture_ratios(portfolio_returns, benchmark_returns):
     daily_hit_rate = (port_ret > 0).mean() * 100
     
     # Monthly win rate (resample to month-end)
-    monthly_returns = port_ret.resample('M').apply(lambda x: (1 + x).prod() - 1)
+    monthly_returns = port_ret.resample('ME').apply(lambda x: (1 + x).prod() - 1)
     monthly_win_rate = (monthly_returns > 0).mean() * 100 if len(monthly_returns) > 0 else 0
     
     return {
@@ -1013,86 +1013,100 @@ def main():
                 # Rolling Metrics Section
                 st.subheader("📈 Rolling Metrics")
                 
-                # Rolling window selector
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    rolling_window = st.selectbox(
-                        "Rolling Window",
-                        options=[63, 126, 252],
-                        format_func=lambda x: f"{x} days",
-                        index=0,
-                        key="rolling_window"
-                    )
+                # Adaptive rolling window based on sampling frequency and date range
+                total_periods = len(portfolio_returns)
+                if frequency == 'D':
+                    adaptive_window = min(63, max(21, total_periods // 4))  # ~3 months or 1/4 of data
+                elif frequency == 'W':
+                    adaptive_window = min(13, max(4, total_periods // 4))   # ~3 months or 1/4 of data
+                elif frequency == 'M':
+                    adaptive_window = min(12, max(3, total_periods // 3))   # ~1 year or 1/3 of data
+                else:
+                    adaptive_window = min(63, max(21, total_periods // 4))
+                
+                st.info(f"Using adaptive {adaptive_window}-period rolling window based on your analysis parameters")
                 
                 # Calculate rolling metrics
                 rolling_metrics = calculate_rolling_metrics(
-                    portfolio_returns, benchmark_returns, risk_free_rate, rolling_window
+                    portfolio_returns, benchmark_returns, risk_free_rate, adaptive_window
                 )
                 
                 if not rolling_metrics.empty:
                     # Create rolling metrics charts
                     fig_rolling = go.Figure()
                     
-                    # Rolling Sharpe
-                    fig_rolling.add_trace(go.Scatter(
-                        x=rolling_metrics.index,
-                        y=rolling_metrics['Rolling_Sharpe'],
-                        mode='lines',
-                        name=f'Rolling Sharpe ({rolling_window}d)',
-                        line=dict(color='#00D4AA', width=2),
-                        yaxis='y1'
-                    ))
+                    # Create separate subplots for cleaner display
+                    from plotly.subplots import make_subplots
                     
-                    # Rolling Max Drawdown
-                    fig_rolling.add_trace(go.Scatter(
-                        x=rolling_metrics.index,
-                        y=rolling_metrics['Rolling_MaxDD'],
-                        mode='lines',
-                        name=f'Rolling Max DD ({rolling_window}d)',
-                        line=dict(color='#FF6B6B', width=2),
-                        yaxis='y2'
-                    ))
+                    # Determine number of subplots
+                    n_subplots = 3 if benchmark_returns is not None else 2
+                    subplot_titles = ['Rolling Sharpe Ratio', 'Rolling Max Drawdown']
+                    if benchmark_returns is not None:
+                        subplot_titles.append('Rolling Beta')
                     
-                    # Rolling Beta (if benchmark available)
-                    if benchmark_returns is not None and 'Rolling_Beta' in rolling_metrics.columns:
-                        fig_rolling.add_trace(go.Scatter(
+                    fig_rolling = make_subplots(
+                        rows=n_subplots, cols=1,
+                        subplot_titles=subplot_titles,
+                        vertical_spacing=0.08,
+                        shared_xaxes=True
+                    )
+                    
+                    # Rolling Sharpe (subplot 1)
+                    fig_rolling.add_trace(
+                        go.Scatter(
                             x=rolling_metrics.index,
-                            y=rolling_metrics['Rolling_Beta'],
+                            y=rolling_metrics['Rolling_Sharpe'],
                             mode='lines',
-                            name=f'Rolling Beta ({rolling_window}d)',
-                            line=dict(color='#45B7D1', width=2),
-                            yaxis='y3'
-                        ))
+                            name=f'Rolling Sharpe ({adaptive_window}p)',
+                            line=dict(color='#00D4AA', width=2),
+                            showlegend=False
+                        ),
+                        row=1, col=1
+                    )
                     
-                    # Update layout for multiple y-axes
+                    # Rolling Max Drawdown (subplot 2)
+                    fig_rolling.add_trace(
+                        go.Scatter(
+                            x=rolling_metrics.index,
+                            y=rolling_metrics['Rolling_MaxDD'],
+                            mode='lines',
+                            name=f'Rolling Max DD ({adaptive_window}p)',
+                            line=dict(color='#FF6B6B', width=2),
+                            showlegend=False
+                        ),
+                        row=2, col=1
+                    )
+                    
+                    # Rolling Beta (subplot 3, if benchmark available)
+                    if benchmark_returns is not None and 'Rolling_Beta' in rolling_metrics.columns:
+                        fig_rolling.add_trace(
+                            go.Scatter(
+                                x=rolling_metrics.index,
+                                y=rolling_metrics['Rolling_Beta'],
+                                mode='lines',
+                                name=f'Rolling Beta ({adaptive_window}p)',
+                                line=dict(color='#45B7D1', width=2),
+                                showlegend=False
+                            ),
+                            row=3, col=1
+                        )
+                    
+                    # Update layout
                     fig_rolling.update_layout(
-                        title=f'Rolling Metrics ({rolling_window}-Day Window)',
-                        xaxis_title='Date',
-                        yaxis=dict(
-                            title='Sharpe Ratio',
-                            titlefont=dict(color='#00D4AA'),
-                            tickfont=dict(color='#00D4AA'),
-                            side='left'
-                        ),
-                        yaxis2=dict(
-                            title='Max Drawdown (%)',
-                            titlefont=dict(color='#FF6B6B'),
-                            tickfont=dict(color='#FF6B6B'),
-                            overlaying='y',
-                            side='right'
-                        ),
-                        yaxis3=dict(
-                            title='Beta',
-                            titlefont=dict(color='#45B7D1'),
-                            tickfont=dict(color='#45B7D1'),
-                            overlaying='y',
-                            side='right',
-                            position=0.97
-                        ) if benchmark_returns is not None else None,
+                        title=f'Rolling Metrics ({adaptive_window}-Period Window)',
+                        height=400 * n_subplots,
                         hovermode='x unified',
                         template='plotly_dark',
-                        showlegend=True
+                        showlegend=False
                     )
+                    
+                    # Update y-axis labels
+                    fig_rolling.update_yaxes(title_text="Sharpe Ratio", row=1, col=1)
+                    fig_rolling.update_yaxes(title_text="Max DD (%)", row=2, col=1)
+                    if benchmark_returns is not None:
+                        fig_rolling.update_yaxes(title_text="Beta", row=3, col=1)
+                    
+                    fig_rolling.update_xaxes(title_text="Date", row=n_subplots, col=1)
                     
                     st.plotly_chart(fig_rolling, use_container_width=True)
                 
@@ -1128,7 +1142,7 @@ def main():
                         
                         # Add up/down day indicators for capture analysis
                         download_data['is_up_day'] = portfolio_returns > 0
-                        monthly_returns = portfolio_returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                        monthly_returns = portfolio_returns.resample('ME').apply(lambda x: (1 + x).prod() - 1)
                         download_data['is_up_month'] = portfolio_returns.index.to_period('M').map(
                             lambda x: x in monthly_returns[monthly_returns > 0].index
                         )
