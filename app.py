@@ -15,7 +15,8 @@ from terms_of_service import get_terms_of_service, get_privacy_policy
 st.set_page_config(
     page_title="Portfolio Backtesting Tool",
     page_icon="📈",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Authentication functions
@@ -90,7 +91,7 @@ def load_registered_users():
 # Removed - integrated into login_form function
 
 def login_form():
-    """Display clean login/signup interface"""
+    """Display professional trading-style login interface"""
     # Initialize session state
     if 'show_signup' not in st.session_state:
         st.session_state.show_signup = False
@@ -103,8 +104,20 @@ def login_form():
         st.session_state['signup_success'] = False
         st.session_state.show_signup = False
     
-    # Centered tab-style navigation
-    col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
+    # Professional header
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem 0;'>
+        <h1 style='color: #00D4AA; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;'>
+            Portfolio Analytics Platform
+        </h1>
+        <p style='color: #8B949E; font-size: 1.1rem; margin-bottom: 2rem;'>
+            Professional-grade portfolio backtesting and risk analysis
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Centered navigation with professional styling
+    col1, col2, col3, col4, col5 = st.columns([2.5, 1, 0.5, 1, 2.5])
     with col2:
         if st.button("Login", type="secondary" if st.session_state.show_signup else "primary", use_container_width=True):
             st.session_state.show_signup = False
@@ -114,102 +127,112 @@ def login_form():
             st.session_state.show_signup = True
             st.rerun()
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.session_state.show_signup:
-        # Clean signup form
-        st.markdown("### Create New Account")
-        st.markdown("Sign up for a new account to access the portfolio backtesting tool.")
-        
-        with st.form("signup_form", clear_on_submit=True):
-            new_username = st.text_input("Choose Username", placeholder="Enter your username")
-            new_email = st.text_input("Email Address", placeholder="Enter your email")
-            new_password = st.text_input("Choose Password", type="password", placeholder="Enter password")
-            confirm_password = st.text_input("Confirm Password", type="password", placeholder="Confirm password")
+    # Center the form content
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.session_state.show_signup:
+            # Professional signup form
+            st.markdown("""
+            <div style='background: linear-gradient(145deg, #0d1117, #161b22); 
+                        padding: 2rem; border-radius: 12px; border: 1px solid #30363d;'>
+            """, unsafe_allow_html=True)
             
-            agree_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy")
-            signup_button = st.form_submit_button("Create Account", use_container_width=True)
+            st.markdown("#### Create New Account")
+            st.markdown("Get access to advanced portfolio analysis tools")
             
-            if signup_button:
-                # Validation
-                registered_users = load_registered_users()
-                all_users = {**DEMO_USERS, **registered_users}
+            with st.form("signup_form", clear_on_submit=True):
+                new_username = st.text_input("Username", placeholder="Choose a username", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Username</small>", unsafe_allow_html=True)
                 
-                if not new_username or not new_email or not new_password:
-                    st.error("Please fill in all fields.")
-                elif new_username in all_users:
-                    st.error("Username already exists. Please choose a different username.")
-                elif len(new_username) < 3:
-                    st.error("Username must be at least 3 characters long.")
-                elif len(new_password) < 6:
-                    st.error("Password must be at least 6 characters long.")
-                elif new_password != confirm_password:
-                    st.error("Passwords do not match.")
-                elif '@' not in new_email:
-                    st.error("Please enter a valid email address.")
-                elif not agree_terms:
-                    st.error("Please agree to the Terms of Service.")
-                else:
-                    # Save new user
-                    try:
-                        save_user_to_file(new_username, new_password, new_email, "user")
-                        st.success("Account created successfully!")
-                        st.info(f"Welcome {new_username}! You can now login with your credentials.")
-                        st.session_state['show_signup'] = False
-                        st.session_state['signup_success'] = True
-                    except Exception as e:
-                        st.error(f"Error creating account: {str(e)}")
-        
-        # Terms and Privacy links (simplified)
-        st.markdown("By creating an account, you agree to our Terms of Service and Privacy Policy")
-    
-    else:
-        # Clean login form
-        st.markdown("### Portfolio Backtesting Tool")
-        st.markdown("Welcome! Please log in to access the portfolio backtesting tool.")
-        
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-            login_button = st.form_submit_button("Login", use_container_width=True)
+                new_email = st.text_input("Email", placeholder="Enter your email address", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Email Address</small>", unsafe_allow_html=True)
+                
+                new_password = st.text_input("Password", type="password", placeholder="Create a secure password", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Choose Password</small>", unsafe_allow_html=True)
+                
+                confirm_password = st.text_input("Confirm", type="password", placeholder="Confirm your password", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Confirm Password</small>", unsafe_allow_html=True)
+                
+                agree_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy")
+                signup_button = st.form_submit_button("Create Account", use_container_width=True)
+                
+                if signup_button:
+                    # Validation
+                    registered_users = load_registered_users()
+                    all_users = {**DEMO_USERS, **registered_users}
+                    
+                    if not new_username or not new_email or not new_password:
+                        st.error("Please fill in all fields.")
+                    elif new_username in all_users:
+                        st.error("Username already exists.")
+                    elif len(new_username) < 3:
+                        st.error("Username must be at least 3 characters.")
+                    elif len(new_password) < 6:
+                        st.error("Password must be at least 6 characters.")
+                    elif new_password != confirm_password:
+                        st.error("Passwords do not match.")
+                    elif '@' not in new_email:
+                        st.error("Please enter a valid email address.")
+                    elif not agree_terms:
+                        st.error("Please agree to the Terms of Service.")
+                    else:
+                        try:
+                            save_user_to_file(new_username, new_password, new_email, "user")
+                            st.success("Account created successfully!")
+                            st.info(f"Welcome aboard, {new_username}!")
+                            st.session_state['show_signup'] = False
+                            st.session_state['signup_success'] = True
+                        except Exception as e:
+                            st.error(f"Error creating account: {str(e)}")
             
-            if login_button:
-                if st.session_state.login_attempts >= 5:
-                    st.error("Too many login attempts. Please refresh the page to try again.")
-                    return
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        else:
+            # Professional login form
+            st.markdown("""
+            <div style='background: linear-gradient(145deg, #0d1117, #161b22); 
+                        padding: 2rem; border-radius: 12px; border: 1px solid #30363d;'>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("#### Welcome Back")
+            st.markdown("Sign in to access your portfolio analytics")
+            
+            with st.form("login_form"):
+                username = st.text_input("Username", placeholder="Enter your username", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Username</small>", unsafe_allow_html=True)
                 
-                # Check both demo users and registered users
-                registered_users = load_registered_users()
-                all_users = {**DEMO_USERS, **registered_users}
+                password = st.text_input("Password", type="password", placeholder="Enter your password", label_visibility="collapsed")
+                st.markdown("<small style='color: #8B949E;'>Password</small>", unsafe_allow_html=True)
                 
-                if username in all_users:
-                    if verify_password(all_users[username]['password'], password):
-                        st.session_state['authenticated'] = True
-                        st.session_state['username'] = username
-                        st.session_state['user_role'] = all_users[username]['role']
-                        st.session_state.login_attempts = 0
-                        st.success("Login successful!")
-                        st.rerun()
+                login_button = st.form_submit_button("Sign In", use_container_width=True)
+                
+                if login_button:
+                    if st.session_state.login_attempts >= 5:
+                        st.error("Too many login attempts. Please refresh the page.")
+                        return
+                    
+                    # Check both demo users and registered users
+                    registered_users = load_registered_users()
+                    all_users = {**DEMO_USERS, **registered_users}
+                    
+                    if username in all_users:
+                        if verify_password(all_users[username]['password'], password):
+                            st.session_state['authenticated'] = True
+                            st.session_state['username'] = username
+                            st.session_state['user_role'] = all_users[username]['role']
+                            st.session_state.login_attempts = 0
+                            st.success("Welcome back!")
+                            st.rerun()
+                        else:
+                            st.session_state.login_attempts += 1
+                            st.error("Invalid credentials")
                     else:
                         st.session_state.login_attempts += 1
-                        st.error("Invalid password")
-                else:
-                    st.session_state.login_attempts += 1
-                    st.error("Invalid username")
-        
-        # Show registered users count
-        registered_users = load_registered_users()
-        if registered_users:
-            st.info(f"{len(registered_users)} registered users in the system")
-        
-        with st.expander("Demo Credentials"):
-            st.markdown("""
-            **Demo Accounts:**
-            - Demo User: `demo` / `demo` (Limited features)
-            - Regular User: `user` / `password123` (Standard features)
-            - Analyst: `analyst` / `analyst2024` (Advanced features)
-            - Administrator: `admin` / `admin123` (Full access)
-            """)
+                        st.error("Invalid credentials")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
 
 def logout():
     """Logout user"""
@@ -485,21 +508,44 @@ def plot_drawdown(drawdown):
 
 # Main Streamlit App
 def main():
-    # Header with user info and logout
+    # Professional header with user info
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.title("📈 Portfolio Backtesting Tool")
-        st.markdown("A comprehensive tool for backtesting portfolio strategies with historical data from Yahoo Finance.")
+        st.markdown("""
+        <div style='padding: 1rem 0;'>
+            <h1 style='color: #00D4AA; font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem;'>
+                Portfolio Analytics
+            </h1>
+            <p style='color: #8B949E; font-size: 1rem; margin: 0;'>
+                Advanced backtesting and risk analysis platform
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     with col2:
         if check_authentication():
             user_role = get_user_role()
-            role_emoji = {"administrator": "🔴", "analyst": "🟡", "user": "🟢", "demo": "🔵"}
-            st.write(f"{role_emoji.get(user_role, '👤')} **{st.session_state.get('username', 'User')}** ({user_role.title()})")
-            if st.button("🚪 Logout", key="logout_btn"):
+            role_colors = {"administrator": "#FF6B6B", "analyst": "#4ECDC4", "user": "#45B7D1", "demo": "#96CEB4"}
+            role_color = role_colors.get(user_role, "#8B949E")
+            
+            st.markdown(f"""
+            <div style='text-align: right; padding: 1rem 0;'>
+                <div style='display: inline-block; background: {role_color}20; 
+                           padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid {role_color}40;'>
+                    <span style='color: {role_color}; font-weight: 600;'>{st.session_state.get('username', 'User')}</span>
+                    <span style='color: #8B949E; font-size: 0.9rem;'> • {user_role.title()}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("Sign Out", key="logout_btn", use_container_width=False):
                 logout()
     
-    # Sidebar for parameters
-    st.sidebar.header("Backtest Parameters")
+    # Professional sidebar styling
+    st.sidebar.markdown("""
+    <div style='text-align: center; padding: 1rem 0; border-bottom: 1px solid #30363d; margin-bottom: 1rem;'>
+        <h3 style='color: #00D4AA; margin: 0;'>Analysis Parameters</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Date selection
     col1, col2 = st.sidebar.columns(2)
@@ -558,8 +604,15 @@ def main():
         index=0
     )
     
-    # Portfolio composition
-    st.header("Portfolio Composition")
+    # Portfolio composition with professional styling
+    st.markdown("""
+    <div style='padding: 1rem 0; border-bottom: 1px solid #30363d; margin-bottom: 1.5rem;'>
+        <h2 style='color: #E6EDF3; font-size: 1.5rem; margin: 0;'>Portfolio Composition</h2>
+        <p style='color: #8B949E; font-size: 0.95rem; margin: 0.5rem 0 0 0;'>
+            Configure your investment portfolio allocation
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Initialize session state for portfolio data
     if 'portfolio_data' not in st.session_state:
@@ -568,11 +621,18 @@ def main():
             'Weight': [0.4, 0.3, 0.3, 0.0]
         })
     
-    # Show role-based information
+    # Show role-based information with professional styling
     permissions = get_user_permissions()
     max_portfolios = permissions.get('max_portfolios')
     if max_portfolios:
-        st.info(f"📊 Your account allows up to {max_portfolios} portfolio simulations. Advanced features: {'✅' if permissions.get('advanced_charts') else '❌'}")
+        st.markdown(f"""
+        <div style='background: #00D4AA20; padding: 1rem; border-radius: 8px; border-left: 4px solid #00D4AA; margin-bottom: 1rem;'>
+            <strong style='color: #00D4AA;'>Account Level:</strong> 
+            <span style='color: #E6EDF3;'>Up to {max_portfolios} portfolio simulations</span><br>
+            <strong style='color: #00D4AA;'>Features:</strong> 
+            <span style='color: #E6EDF3;'>Advanced Analytics {'Enabled' if permissions.get('advanced_charts') else 'Limited'}</span>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Data editor for portfolio
     edited_data = st.data_editor(
@@ -605,8 +665,12 @@ def main():
     if not portfolio_data.empty and portfolio_data['Weight'].sum() > 0:
         portfolio_data['Weight'] = portfolio_data['Weight'] / portfolio_data['Weight'].sum()
         
-        # Display normalized weights
-        st.subheader("Normalized Portfolio Weights")
+        # Display normalized weights with professional styling
+        st.markdown("""
+        <div style='margin: 1.5rem 0 1rem 0;'>
+            <h4 style='color: #E6EDF3; margin-bottom: 0.5rem;'>Normalized Allocation</h4>
+        </div>
+        """, unsafe_allow_html=True)
         weight_df = portfolio_data.copy()
         weight_df['Weight (%)'] = weight_df['Weight'] * 100
         st.dataframe(weight_df[['Ticker', 'Weight (%)']], use_container_width=True)
