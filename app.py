@@ -650,7 +650,7 @@ def main():
     # Benchmark selection
     benchmark = st.sidebar.selectbox(
         "Benchmark",
-        options=['None', 'SPY', 'QQQ'],
+        options=['None', 'SPY', 'QQQ', 'DIA'],
         index=0
     )
     
@@ -669,22 +669,20 @@ def main():
     )
     
     # Volatility Targeting
-    col1, col2 = st.sidebar.columns([2, 1])
-    with col1:
-        target_vol = st.number_input(
-            "Target Vol (annual %)",
-            min_value=0.0,
-            max_value=50.0,
-            value=None,
-            step=1.0,
-            help="Target annual volatility for portfolio overlay"
-        )
-    with col2:
-        show_vol_overlay = st.toggle(
-            "Vol Overlay",
-            value=False,
-            help="Show volatility-targeted overlay"
-        )
+    target_vol = st.sidebar.number_input(
+        "Target Vol (annual %)",
+        min_value=0.0,
+        max_value=50.0,
+        value=None,
+        step=1.0,
+        help="Target annual volatility for portfolio overlay"
+    )
+    
+    show_vol_overlay = st.sidebar.toggle(
+        "Show Vol-Targeted Overlay",
+        value=False,
+        help="Enable volatility-targeted portfolio overlay"
+    )
     
     # Portfolio composition with professional styling
     st.markdown("""
