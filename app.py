@@ -318,7 +318,41 @@ def rebalance_points(index, freq):
     
     return sorted(rebalance_dates)
 
-def simulate_portfolio(returns, target_weights, rebalance, fees_bps):
+def apply_vol_targeting(port_returns, target_annual, window=63, lev_cap=3.0):
+    """
+    Apply volatility targeting overlay to portfolio returns.
+    
+    Parameters:
+    port_returns: Series of portfolio returns
+    target_annual: Target annual volatility (as percentage, e.g., 15 for 15%)
+    window: Rolling window for volatility estimation (default 63 days ~ 3 months)
+    lev_cap: Maximum leverage cap (default 3.0)
+    
+    Returns:
+    vol_targeted_returns: Series of volatility-targeted returns
+    """
+    if port_returns.empty or target_annual is None or target_annual <= 0:
+        return port_returns.copy()
+    
+    # Convert annual target to decimal
+    target_annual_decimal = target_annual / 100
+    
+    # Calculate rolling realized volatility (shifted by 1 day to avoid look-ahead)
+    realized_vol = port_returns.shift(1).rolling(window=window, min_periods=window//2).std() * np.sqrt(252)
+    
+    # Calculate leverage multiplier
+    leverage = target_annual_decimal / realized_vol
+    leverage = leverage.clip(0, lev_cap)  # Apply leverage cap
+    
+    # Apply volatility targeting
+    vol_targeted_returns = port_returns * leverage
+    
+    # Handle NaNs at the beginning
+    vol_targeted_returns = vol_targeted_returns.fillna(port_returns)
+    
+    return vol_targeted_returns
+
+def simulate_portfolio(returns, target_weights, rebalance, fees_bps, rebalance_band=0.0):
     """
     Simulate portfolio returns with weight drift and rebalancing.
     Returns portfolio returns, weight history, and drawdown.
@@ -357,18 +391,36 @@ def simulate_portfolio(returns, target_weights, rebalance, fees_bps):
         
         # Check if rebalancing is needed
         if date in rebalance_dates:
-            # Calculate turnover for transaction costs
             target_weights_series = pd.Series(target_weights, index=returns.columns)
             target_weights_series = target_weights_series / target_weights_series.sum()
             
-            turnover = abs(current_weights - target_weights_series).sum()
-            transaction_cost = turnover * fees_bps / 10000
-            
-            # Apply transaction costs
-            portfolio_value *= (1 - transaction_cost)
-            
-            # Reset to target weights
-            current_weights = target_weights_series.copy()
+            # Drift-band rebalancing logic
+            if rebalance_band > 0:
+                # Check which assets exceed the drift band
+                weight_diffs = abs(current_weights - target_weights_series)
+                rebalance_mask = weight_diffs > (rebalance_band / 100)
+                
+                if rebalance_mask.any():
+                    # Calculate turnover only for assets exceeding the band
+                    turnover = weight_diffs[rebalance_mask].sum()
+                    transaction_cost = turnover * fees_bps / 10000
+                    
+                    # Apply transaction costs
+                    portfolio_value *= (1 - transaction_cost)
+                    
+                    # Rebalance only assets that exceed the band
+                    current_weights[rebalance_mask] = target_weights_series[rebalance_mask]
+                # If no assets exceed band, no rebalancing occurs
+            else:
+                # Traditional rebalancing (band = 0)
+                turnover = abs(current_weights - target_weights_series).sum()
+                transaction_cost = turnover * fees_bps / 10000
+                
+                # Apply transaction costs
+                portfolio_value *= (1 - transaction_cost)
+                
+                # Reset to target weights
+                current_weights = target_weights_series.copy()
     
     # Calculate drawdown
     cumulative_returns = (1 + portfolio_returns).cumprod()
@@ -429,7 +481,7 @@ def performance_stats(port_ret, rf_annual, freq):
         'Max Drawdown (%)': max_drawdown * 100
     }
 
-def plot_equity_curve(port_ret, bench_ret=None):
+def plot_equity_curve(port_ret, bench_ret=None, vol_targeted_ret=None):
     """
     Plot equity curve showing growth of $1.
     """
@@ -441,8 +493,19 @@ def plot_equity_curve(port_ret, bench_ret=None):
             x=portfolio_growth.index,
             y=portfolio_growth.values,
             mode='lines',
-            name='Portfolio',
-            line=dict(color='blue', width=2)
+            name='Base Portfolio',
+            line=dict(color='#1f77b4', width=2)
+        ))
+    
+    # Volatility-targeted overlay if provided
+    if vol_targeted_ret is not None and not vol_targeted_ret.empty:
+        vol_growth = (1 + vol_targeted_ret).cumprod()
+        fig.add_trace(go.Scatter(
+            x=vol_growth.index,
+            y=vol_growth.values,
+            mode='lines',
+            name='Vol-Targeted',
+            line=dict(color='#00D4AA', width=2, dash='dash')
         ))
     
     if bench_ret is not None and not bench_ret.empty:
@@ -452,7 +515,7 @@ def plot_equity_curve(port_ret, bench_ret=None):
             y=benchmark_growth.values,
             mode='lines',
             name='Benchmark',
-            line=dict(color='gray', width=2, dash='dash')
+            line=dict(color='#ff7f0e', width=2)
         ))
     
     fig.update_layout(
@@ -460,7 +523,8 @@ def plot_equity_curve(port_ret, bench_ret=None):
         xaxis_title='Date',
         yaxis_title='Portfolio Value ($)',
         hovermode='x unified',
-        showlegend=True
+        showlegend=True,
+        template='plotly_dark'
     )
     
     return fig
@@ -590,6 +654,38 @@ def main():
         index=0
     )
     
+    # Advanced Features Section
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Advanced Features")
+    
+    # Drift-Band Rebalancing
+    rebalance_band = st.sidebar.slider(
+        "Rebalance Band (±%)",
+        min_value=0.0,
+        max_value=10.0,
+        value=0.0,
+        step=0.5,
+        help="Only rebalance when asset weight drifts outside this band. 0% = rebalance on schedule."
+    )
+    
+    # Volatility Targeting
+    col1, col2 = st.sidebar.columns([2, 1])
+    with col1:
+        target_vol = st.number_input(
+            "Target Vol (annual %)",
+            min_value=0.0,
+            max_value=50.0,
+            value=None,
+            step=1.0,
+            help="Target annual volatility for portfolio overlay"
+        )
+    with col2:
+        show_vol_overlay = st.toggle(
+            "Vol Overlay",
+            value=False,
+            help="Show volatility-targeted overlay"
+        )
+    
     # Portfolio composition with professional styling
     st.markdown("""
     <div style='padding: 1rem 0; border-bottom: 1px solid #30363d; margin-bottom: 1.5rem;'>
@@ -706,9 +802,9 @@ def main():
                     if ticker not in target_weights:
                         target_weights[ticker] = 0.0
                 
-                # Run portfolio simulation
+                # Run portfolio simulation with drift-band rebalancing
                 portfolio_returns, weight_history, drawdown = simulate_portfolio(
-                    returns, target_weights, rebalance_freq, transaction_costs
+                    returns, target_weights, rebalance_freq, transaction_costs, rebalance_band
                 )
                 
                 # Fetch benchmark data if selected
@@ -718,36 +814,70 @@ def main():
                     if not bench_prices.empty:
                         benchmark_returns = compute_returns(bench_prices, frequency)[benchmark]
                 
+                # Apply volatility targeting if enabled
+                vol_targeted_returns = None
+                if show_vol_overlay and target_vol is not None and target_vol > 0:
+                    vol_targeted_returns = apply_vol_targeting(portfolio_returns, target_vol)
+                
                 # Calculate performance statistics
                 portfolio_stats = performance_stats(portfolio_returns, risk_free_rate, frequency)
+                vol_targeted_stats = None
+                if vol_targeted_returns is not None:
+                    vol_targeted_stats = performance_stats(vol_targeted_returns, risk_free_rate, frequency)
                 
                 # Display results
                 st.header("📊 Backtest Results")
                 
-                # Performance metrics
-                col1, col2 = st.columns(2)
+                # Show configuration summary
+                config_summary = f"Rebalancing: {rebalance_freq}"
+                if rebalance_band > 0:
+                    config_summary += f" | Drift Band: ±{rebalance_band}%"
+                if vol_targeted_returns is not None:
+                    config_summary += f" | Vol Target: {target_vol}%"
                 
-                with col1:
-                    st.subheader("Portfolio Performance")
-                    for metric, value in portfolio_stats.items():
-                        if 'Ratio' in metric:
-                            st.metric(metric, f"{value:.3f}")
-                        else:
-                            st.metric(metric, f"{value:.2f}%")
+                st.markdown(f"**Configuration:** {config_summary}")
+                st.markdown("---")
                 
-                with col2:
-                    if benchmark_returns is not None:
-                        benchmark_stats = performance_stats(benchmark_returns, risk_free_rate, frequency)
-                        st.subheader(f"{benchmark} Benchmark Performance")
-                        for metric, value in benchmark_stats.items():
+                # Performance metrics comparison
+                if vol_targeted_stats is not None:
+                    # Side-by-side comparison table
+                    st.subheader("📈 Performance Comparison")
+                    
+                    comparison_data = {
+                        'Metric': list(portfolio_stats.keys()),
+                        'Base Portfolio': [f"{v:.2f}%" if 'Ratio' not in k else f"{v:.3f}" 
+                                         for k, v in portfolio_stats.items()],
+                        'Vol-Targeted': [f"{v:.2f}%" if 'Ratio' not in k else f"{v:.3f}" 
+                                        for k, v in vol_targeted_stats.items()]
+                    }
+                    
+                    comparison_df = pd.DataFrame(comparison_data)
+                    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+                else:
+                    # Regular performance display
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.subheader("Portfolio Performance")
+                        for metric, value in portfolio_stats.items():
                             if 'Ratio' in metric:
                                 st.metric(metric, f"{value:.3f}")
                             else:
                                 st.metric(metric, f"{value:.2f}%")
+                    
+                    with col2:
+                        if benchmark_returns is not None:
+                            benchmark_stats = performance_stats(benchmark_returns, risk_free_rate, frequency)
+                            st.subheader(f"{benchmark} Benchmark Performance")
+                            for metric, value in benchmark_stats.items():
+                                if 'Ratio' in metric:
+                                    st.metric(metric, f"{value:.3f}")
+                                else:
+                                    st.metric(metric, f"{value:.2f}%")
                 
                 # Charts
                 st.subheader("📈 Equity Curve")
-                equity_fig = plot_equity_curve(portfolio_returns, benchmark_returns)
+                equity_fig = plot_equity_curve(portfolio_returns, benchmark_returns, vol_targeted_returns)
                 st.plotly_chart(equity_fig, use_container_width=True)
                 
                 st.subheader("📉 Drawdown Chart")
@@ -773,6 +903,11 @@ def main():
                     download_data = pd.DataFrame(index=portfolio_returns.index)
                     download_data['Portfolio_Return'] = portfolio_returns
                     download_data['Portfolio_Cumulative'] = (1 + portfolio_returns).cumprod()
+                    
+                    # Include volatility-targeted returns if enabled
+                    if vol_targeted_returns is not None:
+                        download_data['Vol_Targeted_Return'] = vol_targeted_returns
+                        download_data['Vol_Targeted_Cumulative'] = (1 + vol_targeted_returns).cumprod()
                     
                     if benchmark_returns is not None:
                         download_data['Benchmark_Return'] = benchmark_returns

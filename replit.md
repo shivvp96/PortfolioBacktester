@@ -4,7 +4,11 @@
 
 This is a comprehensive portfolio backtesting application built with Streamlit that allows users to analyze investment portfolio strategies using historical stock market data. The tool provides professional-grade portfolio analysis capabilities including performance metrics calculation, benchmark comparison, transaction cost modeling, and interactive visualizations. Users can configure portfolios with custom ticker symbols and weights, set rebalancing frequencies, and analyze results through detailed charts and statistics.
 
-**NEW: Authentication System** - The application now includes a secure login system with role-based access control, allowing different user types (Demo, User, Analyst, Administrator) to access features based on their permission levels.
+**Authentication System** - The application includes a secure login system with role-based access control, allowing different user types (Demo, User, Analyst, Administrator) to access features based on their permission levels.
+
+**Advanced Features** - The platform now includes sophisticated portfolio management tools:
+- **Volatility Targeting Overlay**: Dynamically scales portfolio returns to achieve a target annual volatility using rolling window estimation and leverage constraints
+- **Drift-Band Rebalancing**: Only rebalances assets when they drift outside specified tolerance bands, reducing transaction costs and turnover
 
 ## User Preferences
 
@@ -26,7 +30,11 @@ The backend follows a **functional programming** approach with modular component
 - **Authentication Module**: Manages user login, session state, and role-based permissions
 - **Data Fetching Layer**: Handles external API calls to Yahoo Finance with caching
 - **Computation Engine**: Processes returns, simulates portfolios, and calculates performance metrics
-- **Visualization Layer**: Generates interactive charts using Plotly
+- **Advanced Portfolio Management**: 
+  - Volatility targeting with rolling window estimation and leverage capping
+  - Drift-band rebalancing with configurable tolerance thresholds
+  - Transaction cost optimization through reduced turnover
+- **Visualization Layer**: Generates interactive charts using Plotly with overlay support
 - **State Management**: Leverages Streamlit's built-in state management for reactive updates and user sessions
 - **Authorization System**: Controls feature access based on user roles and permissions
 
@@ -34,9 +42,11 @@ The backend follows a **functional programming** approach with modular component
 The application implements a **sequential data processing pipeline**:
 1. **Price Data Acquisition**: Fetches historical stock prices with error handling
 2. **Return Calculation**: Converts prices to returns with configurable sampling frequency
-3. **Portfolio Simulation**: Models portfolio performance with weight drift and rebalancing
-4. **Performance Analysis**: Computes comprehensive financial metrics
-5. **Visualization Generation**: Creates interactive charts for results presentation
+3. **Portfolio Simulation**: Models portfolio performance with weight drift and advanced rebalancing strategies
+4. **Volatility Overlay Processing**: Applies dynamic leverage scaling based on rolling volatility estimation
+5. **Performance Analysis**: Computes comprehensive financial metrics for base and enhanced portfolios
+6. **Comparison Analytics**: Side-by-side performance analysis between base and vol-targeted strategies
+7. **Visualization Generation**: Creates interactive charts with multiple strategy overlays
 
 ### Caching Strategy
 Implements **Streamlit's native caching** (`@st.cache_data`) for the price fetching function to minimize API calls and improve performance. This prevents redundant data downloads when users modify parameters without changing the underlying ticker symbols or date ranges.
