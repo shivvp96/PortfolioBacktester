@@ -6,6 +6,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 import io
+import hashlib
+import hmac
+from auth_config import DEMO_USERS, ROLE_FEATURES
 
 # Set page config
 st.set_page_config(
@@ -13,6 +16,91 @@ st.set_page_config(
     page_icon="📈",
     layout="wide"
 )
+
+# Authentication functions
+
+def hash_password(password):
+    """Hash password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(stored_password, provided_password):
+    """Verify a stored password against provided password"""
+    return stored_password == provided_password
+
+def check_authentication():
+    """Check if user is authenticated"""
+    return st.session_state.get('authenticated', False)
+
+def get_user_role():
+    """Get current user's role"""
+    username = st.session_state.get('username', '')
+    if username in DEMO_USERS:
+        return DEMO_USERS[username]['role']
+    return 'demo'
+
+def get_user_permissions():
+    """Get current user's permissions"""
+    role = get_user_role()
+    return ROLE_FEATURES.get(role, ROLE_FEATURES['demo'])
+
+def login_form():
+    """Display login form"""
+    st.title("🔐 Portfolio Backtesting Tool - Login")
+    st.markdown("Welcome! Please log in to access the portfolio backtesting tool.")
+    
+    # Track login attempts
+    if 'login_attempts' not in st.session_state:
+        st.session_state.login_attempts = 0
+    
+    with st.form("login_form"):
+        st.subheader("Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        login_button = st.form_submit_button("Login")
+        
+        if login_button:
+            if st.session_state.login_attempts >= 5:
+                st.error("Too many login attempts. Please refresh the page to try again.")
+                return
+                
+            if username in DEMO_USERS:
+                if verify_password(DEMO_USERS[username]['password'], password):
+                    st.session_state['authenticated'] = True
+                    st.session_state['username'] = username
+                    st.session_state['user_role'] = DEMO_USERS[username]['role']
+                    st.session_state.login_attempts = 0
+                    st.success("Login successful!")
+                    st.rerun()
+                else:
+                    st.session_state.login_attempts += 1
+                    st.error("Invalid password")
+            else:
+                st.session_state.login_attempts += 1
+                st.error("Invalid username")
+    
+    # Demo credentials info
+    with st.expander("📋 Demo Credentials"):
+        st.info("""
+        **Available Demo Accounts:**
+        
+        🔵 **Demo User** (Limited features)
+        - Username: `demo` | Password: `demo`
+        
+        🟢 **Regular User** (Standard features)  
+        - Username: `user` | Password: `password123`
+        
+        🟡 **Analyst** (Advanced features)
+        - Username: `analyst` | Password: `analyst2024`
+        
+        🔴 **Administrator** (Full access)
+        - Username: `admin` | Password: `admin123`
+        """)
+
+def logout():
+    """Logout user"""
+    st.session_state['authenticated'] = False
+    st.session_state['username'] = None
+    st.rerun()
 
 @st.cache_data
 def fetch_prices(tickers, start_date, end_date):
@@ -81,7 +169,7 @@ def rebalance_points(index, freq):
     
     if freq == "Monthly":
         # Last business day of each month
-        monthly_ends = pd.date_range(start=index.min(), end=index.max(), freq='M')
+        monthly_ends = pd.date_range(start=index.min(), end=index.max(), freq='ME')
         for date in monthly_ends:
             # Find the closest date in the index
             closest_date = index[index <= date].max()
@@ -282,8 +370,18 @@ def plot_drawdown(drawdown):
 
 # Main Streamlit App
 def main():
-    st.title("📈 Portfolio Backtesting Tool")
-    st.markdown("A comprehensive tool for backtesting portfolio strategies with historical data from Yahoo Finance.")
+    # Header with user info and logout
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.title("📈 Portfolio Backtesting Tool")
+        st.markdown("A comprehensive tool for backtesting portfolio strategies with historical data from Yahoo Finance.")
+    with col2:
+        if check_authentication():
+            user_role = get_user_role()
+            role_emoji = {"administrator": "🔴", "analyst": "🟡", "user": "🟢", "demo": "🔵"}
+            st.write(f"{role_emoji.get(user_role, '👤')} **{st.session_state.get('username', 'User')}** ({user_role.title()})")
+            if st.button("🚪 Logout", key="logout_btn"):
+                logout()
     
     # Sidebar for parameters
     st.sidebar.header("Backtest Parameters")
@@ -354,6 +452,12 @@ def main():
             'Ticker': ['AAPL', 'MSFT', 'GOOGL', ''],
             'Weight': [0.4, 0.3, 0.3, 0.0]
         })
+    
+    # Show role-based information
+    permissions = get_user_permissions()
+    max_portfolios = permissions.get('max_portfolios')
+    if max_portfolios:
+        st.info(f"📊 Your account allows up to {max_portfolios} portfolio simulations. Advanced features: {'✅' if permissions.get('advanced_charts') else '❌'}")
     
     # Data editor for portfolio
     edited_data = st.data_editor(
@@ -495,32 +599,40 @@ def main():
                     })
                     st.dataframe(final_weights_df, use_container_width=True)
                 
-                # CSV download
-                st.subheader("💾 Download Results")
-                
-                # Prepare data for download
-                download_data = pd.DataFrame(index=portfolio_returns.index)
-                download_data['Portfolio_Return'] = portfolio_returns
-                download_data['Portfolio_Cumulative'] = (1 + portfolio_returns).cumprod()
-                
-                if benchmark_returns is not None:
-                    download_data['Benchmark_Return'] = benchmark_returns
-                    download_data['Benchmark_Cumulative'] = (1 + benchmark_returns).cumprod()
-                
-                # Convert to CSV
-                csv_buffer = io.StringIO()
-                download_data.to_csv(csv_buffer)
-                csv_data = csv_buffer.getvalue()
-                
-                st.download_button(
-                    label="📥 Download Daily Returns (CSV)",
-                    data=csv_data,
-                    file_name=f"backtest_results_{start_date}_{end_date}.csv",
-                    mime="text/csv"
-                )
+                # CSV download (role-based access)
+                permissions = get_user_permissions()
+                if permissions.get('export_data', False):
+                    st.subheader("💾 Download Results")
+                    
+                    # Prepare data for download
+                    download_data = pd.DataFrame(index=portfolio_returns.index)
+                    download_data['Portfolio_Return'] = portfolio_returns
+                    download_data['Portfolio_Cumulative'] = (1 + portfolio_returns).cumprod()
+                    
+                    if benchmark_returns is not None:
+                        download_data['Benchmark_Return'] = benchmark_returns
+                        download_data['Benchmark_Cumulative'] = (1 + benchmark_returns).cumprod()
+                    
+                    # Convert to CSV
+                    csv_buffer = io.StringIO()
+                    download_data.to_csv(csv_buffer)
+                    csv_data = csv_buffer.getvalue()
+                    
+                    st.download_button(
+                        label="📥 Download Daily Returns (CSV)",
+                        data=csv_data,
+                        file_name=f"backtest_results_{start_date}_{end_date}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.info("💡 Data export is not available for your account level. Please upgrade for CSV download functionality.")
                 
             except Exception as e:
                 st.error(f"An error occurred during backtesting: {str(e)}")
 
-if __name__ == "__main__":
+# Authentication and main app logic
+# Check authentication and run appropriate function
+if not check_authentication():
+    login_form()
+else:
     main()

@@ -4,6 +4,8 @@
 
 This is a comprehensive portfolio backtesting application built with Streamlit that allows users to analyze investment portfolio strategies using historical stock market data. The tool provides professional-grade portfolio analysis capabilities including performance metrics calculation, benchmark comparison, transaction cost modeling, and interactive visualizations. Users can configure portfolios with custom ticker symbols and weights, set rebalancing frequencies, and analyze results through detailed charts and statistics.
 
+**NEW: Authentication System** - The application now includes a secure login system with role-based access control, allowing different user types (Demo, User, Analyst, Administrator) to access features based on their permission levels.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -12,17 +14,21 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 The application uses **Streamlit** as the primary web framework, providing a reactive single-page application structure. The UI is organized with a sidebar for parameter configuration and a main content area for portfolio input and results display. The interface includes:
+- **Authentication Layer**: Secure login form with role-based access control
 - Interactive data editor for portfolio composition
 - Parameter controls in sidebar for backtest configuration
 - Real-time result updates triggered by user interactions
 - Plotly-based interactive charts for data visualization
+- **User Dashboard**: Role-specific header showing user information and logout functionality
 
 ### Backend Architecture
 The backend follows a **functional programming** approach with modular components:
+- **Authentication Module**: Manages user login, session state, and role-based permissions
 - **Data Fetching Layer**: Handles external API calls to Yahoo Finance with caching
 - **Computation Engine**: Processes returns, simulates portfolios, and calculates performance metrics
 - **Visualization Layer**: Generates interactive charts using Plotly
-- **State Management**: Leverages Streamlit's built-in state management for reactive updates
+- **State Management**: Leverages Streamlit's built-in state management for reactive updates and user sessions
+- **Authorization System**: Controls feature access based on user roles and permissions
 
 ### Data Processing Pipeline
 The application implements a **sequential data processing pipeline**:
