@@ -103,13 +103,13 @@ def login_form():
         st.session_state['signup_success'] = False
         st.session_state.show_signup = False
     
-    # Simple tab-style navigation
-    col1, col2, col3 = st.columns([1, 1, 3])
-    with col1:
-        if st.button("Login", type="primary" if not st.session_state.show_signup else "secondary", use_container_width=True):
+    # Centered tab-style navigation
+    col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
+    with col2:
+        if st.button("Login", type="secondary" if st.session_state.show_signup else "primary", use_container_width=True):
             st.session_state.show_signup = False
             st.rerun()
-    with col2:
+    with col4:
         if st.button("Sign Up", type="primary" if st.session_state.show_signup else "secondary", use_container_width=True):
             st.session_state.show_signup = True
             st.rerun()
@@ -160,30 +160,8 @@ def login_form():
                     except Exception as e:
                         st.error(f"Error creating account: {str(e)}")
         
-        # Terms outside form
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("View Terms of Service"):
-                st.session_state['show_terms'] = True
-        with col2:
-            if st.button("View Privacy Policy"):
-                st.session_state['show_privacy'] = True
-        
-        # Show terms modal
-        if st.session_state.get('show_terms', False):
-            with st.expander("Terms of Service", expanded=True):
-                st.markdown(get_terms_of_service())
-                if st.button("Close Terms"):
-                    st.session_state['show_terms'] = False
-                    st.rerun()
-        
-        # Show privacy modal  
-        if st.session_state.get('show_privacy', False):
-            with st.expander("Privacy Policy", expanded=True):
-                st.markdown(get_privacy_policy())
-                if st.button("Close Privacy Policy"):
-                    st.session_state['show_privacy'] = False
-                    st.rerun()
+        # Terms and Privacy links (simplified)
+        st.markdown("By creating an account, you agree to our Terms of Service and Privacy Policy")
     
     else:
         # Clean login form
