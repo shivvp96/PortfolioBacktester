@@ -133,12 +133,7 @@ def login_form():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.session_state.show_signup:
-            # Professional signup form
-            st.markdown("""
-            <div style='background: linear-gradient(145deg, #0d1117, #161b22); 
-                        padding: 2rem; border-radius: 12px; border: 1px solid #30363d;'>
-            """, unsafe_allow_html=True)
-            
+            # Clean signup form without box
             st.markdown("#### Create New Account")
             st.markdown("Get access to advanced portfolio analysis tools")
             
@@ -186,16 +181,9 @@ def login_form():
                             st.session_state['signup_success'] = True
                         except Exception as e:
                             st.error(f"Error creating account: {str(e)}")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
         
         else:
-            # Professional login form
-            st.markdown("""
-            <div style='background: linear-gradient(145deg, #0d1117, #161b22); 
-                        padding: 2rem; border-radius: 12px; border: 1px solid #30363d;'>
-            """, unsafe_allow_html=True)
-            
+            # Clean login form without box
             st.markdown("#### Welcome Back")
             st.markdown("Sign in to access your portfolio analytics")
             
@@ -231,8 +219,6 @@ def login_form():
                     else:
                         st.session_state.login_attempts += 1
                         st.error("Invalid credentials")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
 
 def logout():
     """Logout user"""
