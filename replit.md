@@ -9,6 +9,8 @@ This is a comprehensive portfolio backtesting application built with Streamlit t
 **Advanced Features** - The platform now includes sophisticated portfolio management tools:
 - **Volatility Targeting Overlay**: Dynamically scales portfolio returns to achieve a target annual volatility using rolling window estimation and leverage constraints
 - **Drift-Band Rebalancing**: Only rebalances assets when they drift outside specified tolerance bands, reducing transaction costs and turnover
+- **Upside/Downside Capture Analysis**: Measures portfolio performance relative to benchmark during up and down periods, including hit rates and win rates
+- **Rolling Metrics Dashboard**: Interactive charts showing rolling Sharpe ratio, maximum drawdown, and beta over configurable time windows
 
 ## User Preferences
 
@@ -45,8 +47,10 @@ The application implements a **sequential data processing pipeline**:
 3. **Portfolio Simulation**: Models portfolio performance with weight drift and advanced rebalancing strategies
 4. **Volatility Overlay Processing**: Applies dynamic leverage scaling based on rolling volatility estimation
 5. **Performance Analysis**: Computes comprehensive financial metrics for base and enhanced portfolios
-6. **Comparison Analytics**: Side-by-side performance analysis between base and vol-targeted strategies
-7. **Visualization Generation**: Creates interactive charts with multiple strategy overlays
+6. **Capture Ratio Analysis**: Calculates upside/downside capture ratios and hit rates relative to benchmarks
+7. **Rolling Metrics Computation**: Generates time-series analysis of key performance indicators over rolling windows
+8. **Comparison Analytics**: Side-by-side performance analysis between base and vol-targeted strategies
+9. **Visualization Generation**: Creates interactive charts with multiple strategy overlays and rolling metrics displays
 
 ### Caching Strategy
 Implements **Streamlit's native caching** (`@st.cache_data`) for the price fetching function to minimize API calls and improve performance. This prevents redundant data downloads when users modify parameters without changing the underlying ticker symbols or date ranges.

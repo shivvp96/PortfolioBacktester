@@ -352,6 +352,93 @@ def apply_vol_targeting(port_returns, target_annual, window=63, lev_cap=3.0):
     
     return vol_targeted_returns
 
+def calculate_capture_ratios(portfolio_returns, benchmark_returns):
+    """
+    Calculate upside/downside capture ratios and hit rates.
+    """
+    if portfolio_returns.empty or benchmark_returns.empty:
+        return {}
+    
+    # Align dates
+    aligned_data = pd.DataFrame({
+        'portfolio': portfolio_returns,
+        'benchmark': benchmark_returns
+    }).dropna()
+    
+    if aligned_data.empty:
+        return {}
+    
+    port_ret = aligned_data['portfolio']
+    bench_ret = aligned_data['benchmark']
+    
+    # Upside/Downside periods
+    upside_mask = bench_ret > 0
+    downside_mask = bench_ret < 0
+    
+    # Capture ratios
+    upside_capture = 0
+    downside_capture = 0
+    
+    if upside_mask.any():
+        port_up = port_ret[upside_mask].mean()
+        bench_up = bench_ret[upside_mask].mean()
+        if bench_up != 0:
+            upside_capture = (port_up / bench_up) * 100
+    
+    if downside_mask.any():
+        port_down = port_ret[downside_mask].mean()
+        bench_down = bench_ret[downside_mask].mean()
+        if bench_down != 0:
+            downside_capture = (port_down / bench_down) * 100
+    
+    # Hit rates
+    daily_hit_rate = (port_ret > 0).mean() * 100
+    
+    # Monthly win rate (resample to month-end)
+    monthly_returns = port_ret.resample('M').apply(lambda x: (1 + x).prod() - 1)
+    monthly_win_rate = (monthly_returns > 0).mean() * 100 if len(monthly_returns) > 0 else 0
+    
+    return {
+        'Upside Capture (%)': upside_capture,
+        'Downside Capture (%)': downside_capture,
+        'Daily Hit Rate (%)': daily_hit_rate,
+        'Monthly Win Rate (%)': monthly_win_rate
+    }
+
+def calculate_rolling_metrics(portfolio_returns, benchmark_returns, risk_free_rate, window):
+    """
+    Calculate rolling Sharpe, Max DD, and Beta.
+    """
+    if portfolio_returns.empty:
+        return pd.DataFrame()
+    
+    # Rolling Sharpe
+    excess_returns = portfolio_returns - (risk_free_rate / 252)
+    rolling_sharpe = (excess_returns.rolling(window).mean() / 
+                     excess_returns.rolling(window).std() * np.sqrt(252))
+    
+    # Rolling Max Drawdown
+    rolling_cum = portfolio_returns.rolling(window).apply(lambda x: (1 + x).prod(), raw=False)
+    rolling_peak = rolling_cum.rolling(window, min_periods=1).max()
+    rolling_dd = ((rolling_cum - rolling_peak) / rolling_peak * 100).rolling(window).min()
+    
+    # Rolling Beta (if benchmark available)
+    rolling_beta = pd.Series(index=portfolio_returns.index, dtype=float)
+    if benchmark_returns is not None and not benchmark_returns.empty:
+        for i in range(window, len(portfolio_returns)):
+            port_window = portfolio_returns.iloc[i-window:i]
+            bench_window = benchmark_returns.iloc[i-window:i]
+            if len(port_window) == len(bench_window) and bench_window.var() > 0:
+                rolling_beta.iloc[i] = port_window.cov(bench_window) / bench_window.var()
+    
+    results = pd.DataFrame({
+        'Rolling_Sharpe': rolling_sharpe,
+        'Rolling_MaxDD': rolling_dd,
+        'Rolling_Beta': rolling_beta if benchmark_returns is not None else None
+    }, index=portfolio_returns.index)
+    
+    return results
+
 def simulate_portfolio(returns, target_weights, rebalance, fees_bps, rebalance_band=0.0):
     """
     Simulate portfolio returns with weight drift and rebalancing.
@@ -855,6 +942,43 @@ def main():
                     
                     comparison_df = pd.DataFrame(comparison_data)
                     st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+                
+                # Upside/Downside Capture Analysis (only if benchmark is selected)
+                if benchmark_returns is not None:
+                    st.subheader("📊 Upside/Downside Capture Analysis")
+                    
+                    capture_metrics = calculate_capture_ratios(portfolio_returns, benchmark_returns)
+                    
+                    if capture_metrics:
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric(
+                                "Upside Capture", 
+                                f"{capture_metrics['Upside Capture (%)']:.1f}%",
+                                help="Portfolio performance vs benchmark during up periods"
+                            )
+                        
+                        with col2:
+                            st.metric(
+                                "Downside Capture", 
+                                f"{capture_metrics['Downside Capture (%)']:.1f}%",
+                                help="Portfolio performance vs benchmark during down periods"
+                            )
+                        
+                        with col3:
+                            st.metric(
+                                "Daily Hit Rate", 
+                                f"{capture_metrics['Daily Hit Rate (%)']:.1f}%",
+                                help="Percentage of days with positive returns"
+                            )
+                        
+                        with col4:
+                            st.metric(
+                                "Monthly Win Rate", 
+                                f"{capture_metrics['Monthly Win Rate (%)']:.1f}%",
+                                help="Percentage of months with positive returns"
+                            )
                 else:
                     # Regular performance display
                     col1, col2 = st.columns(2)
@@ -886,6 +1010,92 @@ def main():
                 drawdown_fig = plot_drawdown(drawdown)
                 st.plotly_chart(drawdown_fig, use_container_width=True)
                 
+                # Rolling Metrics Section
+                st.subheader("📈 Rolling Metrics")
+                
+                # Rolling window selector
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    rolling_window = st.selectbox(
+                        "Rolling Window",
+                        options=[63, 126, 252],
+                        format_func=lambda x: f"{x} days",
+                        index=0,
+                        key="rolling_window"
+                    )
+                
+                # Calculate rolling metrics
+                rolling_metrics = calculate_rolling_metrics(
+                    portfolio_returns, benchmark_returns, risk_free_rate, rolling_window
+                )
+                
+                if not rolling_metrics.empty:
+                    # Create rolling metrics charts
+                    fig_rolling = go.Figure()
+                    
+                    # Rolling Sharpe
+                    fig_rolling.add_trace(go.Scatter(
+                        x=rolling_metrics.index,
+                        y=rolling_metrics['Rolling_Sharpe'],
+                        mode='lines',
+                        name=f'Rolling Sharpe ({rolling_window}d)',
+                        line=dict(color='#00D4AA', width=2),
+                        yaxis='y1'
+                    ))
+                    
+                    # Rolling Max Drawdown
+                    fig_rolling.add_trace(go.Scatter(
+                        x=rolling_metrics.index,
+                        y=rolling_metrics['Rolling_MaxDD'],
+                        mode='lines',
+                        name=f'Rolling Max DD ({rolling_window}d)',
+                        line=dict(color='#FF6B6B', width=2),
+                        yaxis='y2'
+                    ))
+                    
+                    # Rolling Beta (if benchmark available)
+                    if benchmark_returns is not None and 'Rolling_Beta' in rolling_metrics.columns:
+                        fig_rolling.add_trace(go.Scatter(
+                            x=rolling_metrics.index,
+                            y=rolling_metrics['Rolling_Beta'],
+                            mode='lines',
+                            name=f'Rolling Beta ({rolling_window}d)',
+                            line=dict(color='#45B7D1', width=2),
+                            yaxis='y3'
+                        ))
+                    
+                    # Update layout for multiple y-axes
+                    fig_rolling.update_layout(
+                        title=f'Rolling Metrics ({rolling_window}-Day Window)',
+                        xaxis_title='Date',
+                        yaxis=dict(
+                            title='Sharpe Ratio',
+                            titlefont=dict(color='#00D4AA'),
+                            tickfont=dict(color='#00D4AA'),
+                            side='left'
+                        ),
+                        yaxis2=dict(
+                            title='Max Drawdown (%)',
+                            titlefont=dict(color='#FF6B6B'),
+                            tickfont=dict(color='#FF6B6B'),
+                            overlaying='y',
+                            side='right'
+                        ),
+                        yaxis3=dict(
+                            title='Beta',
+                            titlefont=dict(color='#45B7D1'),
+                            tickfont=dict(color='#45B7D1'),
+                            overlaying='y',
+                            side='right',
+                            position=0.97
+                        ) if benchmark_returns is not None else None,
+                        hovermode='x unified',
+                        template='plotly_dark',
+                        showlegend=True
+                    )
+                    
+                    st.plotly_chart(fig_rolling, use_container_width=True)
+                
                 # Final weights
                 if not weight_history.empty:
                     st.subheader("📋 Final Portfolio Weights")
@@ -911,9 +1121,17 @@ def main():
                         download_data['Vol_Targeted_Return'] = vol_targeted_returns
                         download_data['Vol_Targeted_Cumulative'] = (1 + vol_targeted_returns).cumprod()
                     
+                    # Include benchmark data and capture metrics if available
                     if benchmark_returns is not None:
                         download_data['Benchmark_Return'] = benchmark_returns
                         download_data['Benchmark_Cumulative'] = (1 + benchmark_returns).cumprod()
+                        
+                        # Add up/down day indicators for capture analysis
+                        download_data['is_up_day'] = portfolio_returns > 0
+                        monthly_returns = portfolio_returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                        download_data['is_up_month'] = portfolio_returns.index.to_period('M').map(
+                            lambda x: x in monthly_returns[monthly_returns > 0].index
+                        )
                     
                     # Convert to CSV
                     csv_buffer = io.StringIO()
